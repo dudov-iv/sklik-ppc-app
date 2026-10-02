@@ -1,10 +1,13 @@
-"""Engine for the Sklik **Fénix** REST API (Seznam Nákupy).
+"""Engine for the Sklik **Fénix** REST API (Seznam Nákupy + Sklik campaigns).
 
-Fénix (`api.sklik.cz/v1`) is Seznam's newer REST interface for **Seznam Nákupy**
-(formerly Zboží.cz). It covers the shopping blind spot of DRAK (`sklik/api.py`):
-the feed, per-offer diagnostics, per-product bids/auction positions and the
-placement breakdown of shopping statistics — none of which DRAK exposes, where a
-product campaign is only ever an aggregate.
+Fénix (`api.sklik.cz/v1`) is Seznam's newer REST interface. Its `/nakupy/*`
+half serves **Seznam Nákupy** (formerly Zboží.cz) and covers the shopping blind
+spot of DRAK (`sklik/api.py`): the feed, per-offer diagnostics, per-product
+bids/auction positions and the placement breakdown of shopping statistics —
+none of which DRAK exposes, where a product campaign is only ever an aggregate.
+Its `/sklik/*` and `/user/*` half (campaigns, groups, ads, negative keywords,
+the authorized user) backs the `fenix-*` commands in
+`sklik/commands/fenix_sklik.py`.
 
 It is a **separate API with separate auth**: a long-lived *refresh token*
 (generated in the Sklik web UI) is exchanged at `POST /user/token` for a 1-hour
@@ -18,7 +21,8 @@ Config in `.env`, mirroring the DRAK per-account scheme:
     SKLIK_FENIX_PREMISE_<NAME>         -> per-account default premiseId
 
 `premiseId` identifies the **shop** and is required by every `/nakupy/*` call;
-`--premise-id` overrides the configured default. It is not a campaign ID.
+`--premise-id` overrides the configured default. It is not a campaign ID. The
+`/sklik/*` and `/user/*` endpoints do not take it.
 
 `--user-id` works here too, but at a different layer than in DRAK: Fénix takes
 the managed account at **token mint time** (`user_id` in the token request), so
@@ -68,8 +72,11 @@ _ENDPOINT_MIN_INTERVAL = {
 # Longest server-requested wait (`Retry-After`) we sit out before giving up.
 _RETRY_AFTER_MAX = 120
 
-# Runaway guard for cursor paging — a hit is reported, never silent.
+# Runaway guard for cursor/offset paging — a hit is reported, never silent.
 LIST_MAX_ITEMS = 200000
+
+# Page size of the offset-paged `/sklik/*` listings (the spec's `limit` maximum).
+SKLIK_PAGE_LIMIT = 1000
 
 # Managed account for this invocation; set once from `--user-id` in main().
 ACTIVE_USER_ID: int | None = None
@@ -103,9 +110,9 @@ def check_config() -> None:
         env_var = f"SKLIK_FENIX_REFRESH_TOKEN{_env_suffix()}"
         _fail_msg(
             f"{env_var} not set for account '{api.ACTIVE_ACCOUNT}'. The Nákupy "
-            "commands use the Fénix API, which has its OWN token — generate a "
-            "refresh token in the Sklik web UI and add it to .env (see "
-            ".env.example). The DRAK API token does not work here.",
+            "and fenix-* commands use the Fénix API, which has its OWN token — "
+            "generate a refresh token in the Sklik web UI and add it to .env "
+            "(see .env.example). The DRAK API token does not work here.",
             account=api.ACTIVE_ACCOUNT,
         )
 
@@ -362,6 +369,30 @@ def fetch_all(path: str, params: dict, page_limit: int) -> tuple[list[dict], int
             print(f"WARNING: {path} returned more than {LIST_MAX_ITEMS} rows; "
                   "the list is truncated. Narrow the query.", file=sys.stderr)
             return rows, total
+
+
+def fetch_all_offset(path: str, params: dict,
+                     page_limit: int = SKLIK_PAGE_LIMIT) -> list[dict]:
+    """Read EVERY row of an offset-paged Fénix listing (the `/sklik/*` ones).
+
+    Unlike `/nakupy/shop-items/` these page with plain `offset`/`limit` (max
+    1000) and the response is just `{"items": […]}` — no cursor and no total
+    count, exactly like DRAK's `*.list`. So the only complete read is to walk
+    offsets until a short page comes back; same contract as `api._fetch_all`.
+    """
+    rows: list[dict] = []
+    offset = 0
+    while True:
+        data = call("GET", path, dict(params, limit=page_limit, offset=offset))
+        page = data.get("items") or []
+        rows.extend(page)
+        if len(page) < page_limit:
+            return rows
+        offset += page_limit
+        if len(rows) >= LIST_MAX_ITEMS:
+            print(f"WARNING: {path} returned more than {LIST_MAX_ITEMS} rows; "
+                  "the list is truncated. Narrow the query.", file=sys.stderr)
+            return rows
 
 
 def poll_report(report_id: int, timeout: int = 120) -> dict:
