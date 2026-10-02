@@ -7,6 +7,8 @@ Python CLI for managing PPC search & display campaigns on Seznam Sklik via the D
 ```bash
 source venv/bin/activate && python sklik_cli.py <command> [flags]
 # or: ./run.sh <command> [flags]
+# opt-in, only when .env holds 1Password op:// references instead of tokens:
+#     ./run-op.sh <command> [flags]     (= op run --env-file=.env -- ./run.sh …)
 ```
 
 ## Code structure
@@ -29,6 +31,7 @@ Shared mutable state (`ACTIVE_ACCOUNT`, `_JSON_OUTPUT`, session) lives in `api.p
 - Session cached per account in `.session_cache_<account>.json` (25 min TTL); auto-reconnects on 401.
 - **`--account <name>`** and **`--user-id <id>`** are independent global flags (before the subcommand). `--account` picks the login/token; `--user-id` acts on a MANAGED account under the active login (agency → client).
 - **Fénix commands** (`feed-*`, `nakupy-*`, `shop-items`, `fenix-*`) use a **separate API and token**: `SKLIK_FENIX_REFRESH_TOKEN` / `_<NAME>` (a refresh token from the Sklik web UI, exchanged for a 1h access token). The Nákupy ones also need a `premiseId` (shop, not campaign): `--premise-id` or `SKLIK_FENIX_PREMISE` / `_<NAME>`; the `fenix-*` ones do not. The refresh token carries an access level (`r` / `rw` / `rwa`) — the `fenix-*` writes need `rw`; `fenix-me` shows the scopes actually granted. `cli.py` calls `fenix.check_config()` for these, never `api.check_config()`.
+- **Password managers are opt-in and live outside the Python code.** The app only reads the environment, and `load_dotenv()` does not override variables that are already set — so anything that injects the token variables works. `./run-op.sh` is the worked example (1Password CLI: `.env` holds `op://vault/item/field` references, `op run` resolves them for one process); it hardcodes no account, set `OP_ACCOUNT` yourself when several are signed in. Started through plain `./run.sh`, an unresolved `op://…` value is caught by `api.check_config()` / `fenix.check_config()` (`_fail_if_secret_reference`) before any request. The short-lived session / access tokens still land in `.session_cache_*.json` / `.fenix_cache_*.json`. Never add a hard dependency on `op` — `./run.sh` with plain tokens must keep working unchanged.
 - A token-less/unknown `--account` fails with an error listing the configured accounts. `suggest`/`suggest-stats` silently ignore `--user-id` (the API methods take no managed-user param) — call them without it.
 
 ## Price convention

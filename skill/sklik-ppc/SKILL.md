@@ -13,7 +13,7 @@ This skill drives the **sklik-ppc-app** CLI (a Python wrapper around the Sklik D
 
 ## CLI Setup
 
-This skill calls the app through its `run.sh` launcher (which activates the venv for you).
+This skill calls the app through its `run.sh` launcher (which activates the venv for you). If the user keeps the tokens in 1Password (`.env` holds `op://…` references), the launcher is `run-op.sh` instead — same arguments; `INSTALL.md` shows how to switch. An error saying a token "holds an unresolved 1Password reference" means exactly this mix-up: tell the user, do not try to resolve or read the secret yourself.
 
 **Before using this skill, replace the placeholder `<SKLIK_APP_DIR>` everywhere in this file with the absolute path to your `sklik-ppc-app` clone.** For example `~/dev/sklik-ppc-app`. (The `INSTALL.md` shipped with the app shows a one-line command to do this.)
 

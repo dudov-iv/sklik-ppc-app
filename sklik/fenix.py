@@ -106,8 +106,9 @@ def _refresh_token() -> str:
 def check_config() -> None:
     """Fail early (before any request) if no Fénix refresh token is configured."""
     token = _refresh_token()
+    env_var = f"SKLIK_FENIX_REFRESH_TOKEN{_env_suffix()}"
+    api._fail_if_secret_reference(token, env_var)
     if not token or token.startswith("your-"):
-        env_var = f"SKLIK_FENIX_REFRESH_TOKEN{_env_suffix()}"
         _fail_msg(
             f"{env_var} not set for account '{api.ACTIVE_ACCOUNT}'. The Nákupy "
             "and fenix-* commands use the Fénix API, which has its OWN token — "

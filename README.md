@@ -67,7 +67,7 @@ cp .env.example .env   # a doplň token
 3. Vygeneruj / zkopíruj svůj **API token**.
 4. Token vlož do souboru `.env` jako `SKLIK_API_TOKEN` (viz [Konfigurace](#konfigurace) níže).
 
-> Token je heslo k tvému Sklik účtu přes API. Nikam ho nedávej do kódu ani do gitu, patří **výhradně** do `.env` (které je v `.gitignore`).
+> Token je heslo k tvému Sklik účtu přes API. Nikam ho nedávej do kódu ani do gitu, patří **výhradně** do `.env` (které je v `.gitignore`), případně do správce hesel (viz [Tokeny ve správci hesel](#tokeny-ve-správci-hesel-volitelné)).
 
 ### Konfigurace
 
@@ -79,6 +79,48 @@ SKLIK_API_TOKEN_CLIENTB=tvuj-token    # volitelný další login → --account c
 ```
 
 Účty se zjistí z prostředí za běhu. Žádná jména nejsou natvrdo v kódu, takže můžeš mít libovolný počet loginů. Session se po přihlášení cachuje 25 minut do `.session_cache_<account>.json` (taky gitignored) a automaticky se obnoví při vypršení (401).
+
+### Tokeny ve správci hesel (volitelné)
+
+**Nic z toho dělat nemusíš.** Token v `.env` a `./run.sh` fungují dál úplně stejně. Tohle je doplněk pro případ, že dlouhodobý token nechceš mít na disku jako čistý text, třeba když máš složku s appkou v synchronizovaném úložišti nebo v zálohách.
+
+Princip je obecný: appka čte tokeny z proměnných prostředí a `.env` je jen jeden ze způsobů, jak je tam dostat. Knihovna `python-dotenv` navíc **nepřepisuje proměnné, které už v prostředí jsou**. Funguje tedy cokoli, co umí spustit příkaz s doplněnými proměnnými: `op run` u 1Passwordu, obdobné příkazy jiných správců hesel, nebo jeden řádek v shellu. Stačí, aby při spuštění `./run.sh` existovaly `SKLIK_API_TOKEN` a případně `SKLIK_FENIX_REFRESH_TOKEN`. Příklad s Klíčenkou na macOS:
+
+```bash
+SKLIK_API_TOKEN="$(security find-generic-password -s sklik-api -w)" ./run.sh account
+```
+
+Pro **1Password CLI** je v repu hotový skript `run-op.sh`:
+
+1. Nainstaluj si [1Password CLI](https://developer.1password.com/docs/cli/get-started/) (`op`) a přihlas ho. Nejpohodlnější je propojení s aplikací 1Password, pak se odemyká otiskem.
+2. Token ulož do 1Passwordu a do `.env` napiš místo hodnoty odkaz na něj:
+
+   ```bash
+   SKLIK_API_TOKEN=op://<trezor>/<položka>/<pole>
+   SKLIK_FENIX_REFRESH_TOKEN=op://<trezor>/<položka>/<pole>
+   ```
+
+3. Místo `./run.sh` spouštěj `./run-op.sh`, přepínače zůstávají stejné:
+
+   ```bash
+   ./run-op.sh account
+   ./run-op.sh campaigns --json
+   ```
+
+`run-op.sh` jen zavolá `op run --env-file=.env -- ./run.sh …`. `op` si vyžádá odemčení (otisk nebo heslo) a dosadí skutečné hodnoty do prostředí toho jednoho procesu. Na disk se nezapíšou. Když omylem spustíš obyčejné `./run.sh`, appka pozná nevyřešený odkaz `op://…`, nic nikam nepošle a napíše ti, ať použiješ `./run-op.sh`.
+
+**Co tím získáš a co ne:**
+
+- Dlouhodobý token už neleží v čistém textu na disku, takže ani v cloudové synchronizaci a zálohách. Každé použití navíc musíš odemknout.
+- Krátkodobé přihlášení se na disk ukládá dál: session DRAKu (25 minut) do `.session_cache_<account>.json` a access token Fénixu (1 hodina) do `.fenix_cache_<account>.json`. Kdo se k těm souborům dostane, může do vypršení jednat za tebe. Oba soubory jsou v `.gitignore`.
+- Proti škodlivému programu, který běží pod tvým účtem ve chvíli, kdy máš 1Password odemčený, to neochrání.
+
+**Na čem se dá zaseknout:**
+
+- Máš v 1Passwordu přihlášených víc účtů? Řekni `op`, který má použít: `OP_ACCOUNT=my.1password.com ./run-op.sh account` (adresa účtu, jak ji vypíše `op account list`). Skript žádný účet sám nevybírá.
+- Jedno spuštění `op run` řeší odkazy jen v rámci jednoho účtu. Všechny tokeny z `.env` proto musí být v tomtéž účtu 1Passwordu.
+- Název pole závisí na typu položky: u typu *API Credential* je to `credential`, u *Secure Note* `notesPlain`.
+- Když nepotvrdíš výzvu k odemčení včas, skončí příkaz chybou `authorization timeout`. Stačí ho pustit znovu.
 
 ### Účty vs. spravované účty
 
@@ -490,11 +532,12 @@ sklik-ppc-app/
 │   └── commands/       #   jeden modul na doménu (ads, campaigns, keywords, …)
 ├── requirements.txt    # Závislosti (requests, python-dotenv)
 ├── setup.sh · run.sh   # Instalační / spouštěcí skript (aktivuje venv)
+├── run-op.sh           # Volitelné: spuštění s tokeny z 1Passwordu (op run → run.sh)
 ├── .env.example        # Šablona pro tokeny
 ├── CLAUDE.md           # Signpost pro Claude Code (+ dokumentační mapa)
 ├── docs/api-notes.md   # Hutná reference chování API Drak
 ├── CHANGELOG.md        # Historie verzí
-├── .env                # Tokeny (NEVERZOVAT)
+├── .env                # Tokeny nebo odkazy op:// (NEVERZOVAT)
 └── skill/              # Skill pro Claude Code (/sklik-ppc) + INSTALL.md
 ```
 
