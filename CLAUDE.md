@@ -37,7 +37,7 @@ CLI accepts/displays **CZK**; the API uses haléře (100 = 1 Kč). Conversion is
 
 **Fénix (Nákupy) is mostly the exception**: stats and shop-item CPCs are plain CZK floats, so the `sklik/formatting.py` helpers must NOT touch them. But `/nakupy/campaigns/` proxies DRAK, so **both** `budget.dayBudget` and `exhaustedDayBudget` there are haléře — the OpenAPI spec claims CZK for `dayBudget` and is wrong (verified against a live account through both APIs).
 
-## Commands (93, grouped)
+## Commands (98, grouped)
 
 **Full flag reference + examples: [README.md](README.md).** Index:
 
@@ -49,6 +49,7 @@ CLI accepts/displays **CZK**; the API uses haléře (100 = 1 Kč). Conversion is
 - **Negatives:** `negatives`, `negative-add`, `negative-add-batch`, `negative-remove`
 - **Research:** `suggest`, `suggest-stats`, `search-queries`
 - **Sitelinks:** `sitelinks`, `sitelink-create/update/remove`, `sitelink-assign` (campaign/group; REPLACES the whole set), `sitelinks-assigned`
+- **Callouts (popisky):** `callouts`, `callout-create/remove`, `callout-assign` (replaces the callouts, keeps the sitelinks; `--dry-run`), `callouts-assigned`. A callout is a `sitelinks.*` record without a URL; the CLI keeps the two apart.
 - **Conversions:** `conversions`, `conversion-types`, `conversion-create/update/remove`
 - **Retargeting:** `retargeting`, `retargeting-create/update/remove`, **`retargeting-attach/detach`** (audience ↔ group), `retargeting-attached`, **`retargeting-exclude`** (+`-remove`) — negative retargeting at campaign OR group level, `retargeting-excluded`
 - **Banners:** `banner-formats`, `banners`, `banner-create`, `banner-download`, `banner-update`, `banner-remove`, `banner-restore`
