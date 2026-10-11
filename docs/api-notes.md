@@ -92,10 +92,11 @@ deep detail in this file and the signpost lean.
 | live | `fenix-groups` | `cpc: 300` for a 3 Kč bid → **haléře** |
 | live | `fenix-negatives --campaign-id` | the 33 campaign-level negatives written through DRAK `negative-add-batch --campaign-id`, DRAK's `negativeBroad` reported as `matchType: negative` |
 | live | `fenix-campaign-create --dry-run` | valid payload: 2xx with `{"items": []}`, nothing persisted (checked by listing through both APIs); `--day-budget 0`: 422 with `loc: ["budget.dayBudget"]`, `msg: "Invalid field value"` |
-| **not run** | `fenix-campaign-create` / `fenix-group-create` / `fenix-ad-create` without `--dry-run` | *(spec only)* — no entity has been created through Fénix |
-| **not run** | `fenix-group-create --dry-run`, `fenix-ad-create --dry-run` | *(spec only)* |
-| **not run** | `fenix-negative-add`, `fenix-negative-remove` | *(spec only)* |
-| **not run** | `fenix-ads`, `fenix-negatives --group-id` | *(spec only)* |
+| live 2026-10-11 | `fenix-campaign-create` | created `suspend`; a 30 Kč budget reads `3000` in Fénix and `30.0` in DRAK; `--day-budget 10` is a 422 on `budget.dayBudget` |
+| live 2026-10-11 | `fenix-group-create` (`--dry-run` and real) | `--cpc 3` reads `cpc: 300`; a group created with `--cpc` only gets `cpm: 5000` from the server |
+| live 2026-10-11 | `fenix-ad-create` (`--dry-run` and real), `fenix-ads` | all ETA fields round-trip; a 31-character `headline1` is a 422 naming the field. **`status` in the body is a 422 `status: Invalid field value` for both `active` and `suspend`, although the spec allows it — the CLI does not send it and the ad is always created `active`** |
+| live 2026-10-11 | `fenix-negative-add`, `fenix-negative-remove`, `fenix-negatives --group-id` | both levels, all three match types, checked through both APIs. **A duplicate add answers 201 and a delete of a non-existent keyword answers 204**, so the CLI reports success for both |
+| **not run** | `fenix-campaign-create --status active`, `--type context|product`, `--user-id` | *(spec only)* |
 | **not run** | the v1.11.0 changes to the Nákupy commands (`feed-status` output, `shop-items` pacing) and the `Retry-After` handling | checked against the spec and with mocked responses only — no 429 was provoked |
 
 Two things the live run settled beyond single fields: **entity IDs are identical in both APIs** (a campaign/group created through DRAK is addressed by the same ID in Fénix), and **campaign-level negatives written through DRAK are readable through Fénix**. Everything below without a *(live 2026-10-02)* mark is still the spec's word, and the 1.10.1 lesson (the spec was wrong about two Nákupy fields) applies to it.

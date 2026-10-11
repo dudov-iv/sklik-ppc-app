@@ -443,7 +443,7 @@ Token potřebuje úroveň přístupu **`rw`** pro zápis (volí se při generov�
 | `fenix-negatives` | `--campaign-id`, `--group-id` (bez něj = úroveň kampaně), `--json` |
 | `fenix-campaign-create` | `--name`, `--day-budget` (Kč), `--type fulltext\|context\|product`, `--status` (výchozí `suspend`), `--ad-selection`, `--dry-run`, `--json` |
 | `fenix-group-create` | `--campaign-id`, `--name`, `--cpc` nebo `--cpm` (Kč), `--status`, `--dry-run`, `--json` |
-| `fenix-ad-create` | `--campaign-id`, `--group-id`, `--headline1`, `--headline2`, `--headline3`, `--description1` (alias `--description`), `--description2`, `--final-url`, `--path1`, `--path2`, `--mobile-final-url`, `--tracking-template`, `--status`, `--dry-run`, `--json` |
+| `fenix-ad-create` | `--campaign-id`, `--group-id`, `--headline1`, `--headline2`, `--headline3`, `--description1` (alias `--description`), `--description2`, `--final-url`, `--path1`, `--path2`, `--mobile-final-url`, `--tracking-template`, `--dry-run`, `--json`. Inzerát vzniká vždy aktivní, `status` API při zakládání odmítá |
 | `fenix-negative-add` | `--campaign-id`, `--group-id`, `--name`, `--match-type negative\|negativePhrase\|negativeExact`, `--dry-run`, `--json` |
 | `fenix-negative-remove` | `--campaign-id`, `--group-id`, `--name`, `--match-type` (povinný), `--confirm`, `--dry-run`, `--json` |
 

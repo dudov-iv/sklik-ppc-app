@@ -9,16 +9,15 @@ reports. What it adds is `dryRun` validation of creates and — the one thing
 DRAK cannot do at all — LISTING campaign-level negative keywords.
 
 Written against the OpenAPI spec (v1.30.0). What a live account confirmed on
-2026-10-02 and what is still spec-only (details in `docs/api-notes.md`):
+2026-10-02 and 2026-10-11 and what is still spec-only (details in
+`docs/api-notes.md`):
 
-* **verified live** — every read except `fenix-ads`: `fenix-me`,
-  `fenix-credit`, `fenix-accounts`, `fenix-campaigns`, `fenix-groups`,
-  `fenix-negatives --campaign-id` (campaign level); and the server-side dry run
-  of `fenix-campaign-create` (a valid payload answers 2xx and persists nothing,
-  an invalid one answers 422 naming the field).
-* **NOT run live** — any real (non-dry) create, the dry run of
-  `fenix-group-create` / `fenix-ad-create`, `fenix-negative-add`,
-  `fenix-negative-remove`, `fenix-ads`, and `fenix-negatives --group-id`.
+* **verified live** — every read; the server-side dry run and the real create
+  of a campaign, a group and an ETA ad (a valid payload answers 2xx, an invalid
+  one 422 naming the field); `fenix-negative-add` / `fenix-negative-remove` at
+  both levels with all three match types.
+* **NOT run live** — `fenix-campaign-create --status active`, the `context` and
+  `product` campaign types, `--user-id`, and a 429.
 
 Money, per field:
 
@@ -343,7 +342,11 @@ def cmd_fenix_group_create(args: argparse.Namespace) -> None:
 
 
 def cmd_fenix_ad_create(args: argparse.Namespace) -> None:
-    """Create an ETA ad in a group."""
+    """Create an ETA ad in a group.
+
+    No `status`: the spec allows it, the live API answers 422 "status: Invalid
+    field value" for both values (2026-10-11). The ad is always created active.
+    """
     ad: dict = {
         "type": "eta",
         "headline1": args.headline1,
@@ -355,8 +358,7 @@ def cmd_fenix_ad_create(args: argparse.Namespace) -> None:
                        ("description2", args.description2),
                        ("path1", args.path1), ("path2", args.path2),
                        ("mobileFinalUrl", args.mobile_final_url),
-                       ("trackingTemplate", args.tracking_template),
-                       ("status", args.status)):
+                       ("trackingTemplate", args.tracking_template)):
         if value:
             ad[key] = value
 

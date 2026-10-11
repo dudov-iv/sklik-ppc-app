@@ -1037,7 +1037,8 @@ def main() -> None:
     p.add_argument("--json", **json_kwargs)
 
     p = subparsers.add_parser(
-        "fenix-ad-create", help="Create ETA ad; --dry-run validates only (Fénix)")
+        "fenix-ad-create",
+        help="Create ETA ad (always created active); --dry-run validates only (Fénix)")
     p.add_argument("--campaign-id", type=int, required=True, help="Campaign ID")
     p.add_argument("--group-id", type=int, required=True, help="Group ID")
     p.add_argument("--headline1", required=True, help="Headline 1 (max 30 chars)")
@@ -1051,7 +1052,6 @@ def main() -> None:
     p.add_argument("--path2", help="Display path 2 (max 15 chars; needs --path1)")
     p.add_argument("--mobile-final-url", help="Mobile final URL")
     p.add_argument("--tracking-template", help="Tracking template")
-    p.add_argument("--status", choices=["active", "suspend"], help="Initial status")
     p.add_argument("--dry-run", **dry_run_kwargs)
     p.add_argument("--json", **json_kwargs)
 
