@@ -2,6 +2,60 @@
 
 Verze aplikace je v `sklik/__init__.py` (`__version__`, SemVer). Formát vychází z [Keep a Changelog](https://keepachangelog.com/). Datum je vydání dané verze.
 
+## [1.12.0] — 2026-10-22 — úpravy kampaní a reklam přes API Fénix 1.34.0: datum začátku a konce, frekvenční strop kampaně, data bannerů
+
+Při zakládání obsahových kampaní chyběly tři věci: konec kampaně, frekvenční
+strop kampaně a konec bannerů. Šly nastavit jen ve webovém Skliku nebo vlastním
+skriptem. Příčina:
+
+- **DRAK** datum začátku a konce kampaně umí (`campaigns.create` /
+  `campaigns.update`, `startDate` / `endDate`, v update `null` = smazat), CLI
+  ho ale jen četlo.
+- **DRAK** frekvenční strop kampaně nemá vůbec (jen strop sestavy
+  `maxUserDailyImpression`) a banner ani reklama v něm datum nemají.
+- **Fénix** od specifikace 1.34.0 umí obojí (`PATCH /sklik/campaigns/{id}/`
+  s objektem `capping`, `PATCH …/ads/{adId}/` s `startDate` / `endDate` u všech
+  typů reklam). CLI úpravy přes Fénix nebalilo vůbec.
+
+### Přidáno
+
+- **`fenix-campaign-update`**: stav, název, denní a celkový rozpočet (Kč),
+  začátek a konec (`YYYY-MM-DD`, `none` smaže), frekvenční strop kampaně
+  (`--capping-max`, `--capping-period daily|weekly|monthly|whole`,
+  `--capping-min-delay`, `--capping-min-delay-period`, `--no-capping`) a
+  vyloučené weby (`--excluded-urls`, nahrazuje celý seznam;
+  `--no-excluded-urls`). Typ kampaně, který API v těle vyžaduje, si příkaz
+  dohledá, nebo ho vezme z `--type`.
+- **`fenix-ad-update`**: stav, začátek a konec u libovolného typu reklamy
+  včetně bannerů, u banneru a brandingu i název. Bere víc `--ad-id` z jedné
+  sestavy; typy dohledá jedním výpisem sestavy. Když API reklamu místo úpravy
+  nahradí novou (200 s novým `id`), výstup to hlásí v `replaced`.
+- Oba příkazy mají `--dry-run` = `dryRun=true`, API požadavek ověří a nic
+  nezmění.
+- DRAK `campaign-create` / `campaign-update`: `--start-date`, `--end-date`
+  (v update `none` datum smaže).
+- `fenix-campaigns` vypisuje začátek, konec a frekvenční strop, `fenix-ads`
+  začátek a konec.
+
+### Ověření
+
+- Stejné požadavky, jaké příkazy posílají, prošly 22. 10. 2026 na živém účtu
+  vlastním skriptem: `PATCH` kampaně typu `context` s `endDate` a
+  `capping {maxImpressions, maxImpressionsPeriod: daily}`, `PATCH` bannerů
+  s `endDate`, kontrolní výpis s `ids` a `capping.maxImpressions`. Samotné
+  příkazy jsou otestované proti specifikaci 1.34.0 s podvrženými odpověďmi.
+- Neověřeno naživo: `--start-date`, `--no-capping`, `--excluded-urls`,
+  `--total-budget`, `--dry-run` u úprav, `fenix-ad-update` u jiných typů než
+  banner, DRAKové `--start-date` / `--end-date`.
+
+### Co API neumí ani teď
+
+- Vyloučení dezinformačních webů: přepínač není v DRAKu ani ve Fénixu 1.34.0.
+  Jde jen vlastním seznamem přes `--excluded-urls`.
+- Volba konverzí pro konkrétní kampaň: Fénix má
+  `/sklik/event-measurement/conversions/`, ale žádné pole, které by konverzi
+  přiřadilo kampani.
+
 ## [1.11.0] — 2026-10-02 — API Fénix 1.30.0: příkazy `fenix-*` (kampaně, sestavy, inzeráty, vylučující slova), `Retry-After` a volitelně tokeny ve správci hesel
 
 Fénix od verze 1.26.1, proti které vznikla podpora Nákupů, dorostl o správu

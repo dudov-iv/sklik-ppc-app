@@ -13,8 +13,9 @@ Konkrétně je doprovodným materiálem k 7. lekci kurzu. Součástí repa je i 
 
 ## 🆕 Co je nového
 
-Poslední verze je **1.11.0**. Celá historie: **[CHANGELOG.md](CHANGELOG.md)**.
+Poslední verze je **1.12.0**. Celá historie: **[CHANGELOG.md](CHANGELOG.md)**.
 
+- **1.12.0**: kampaň a reklamu jde přes Fénix (specifikace 1.34.0) i upravit. **`fenix-campaign-update`** nastaví začátek a konec kampaně, frekvenční strop **na úrovni kampaně** (DRAK ho nečte ani nezapisuje), celkový rozpočet, vyloučené weby, stav a denní rozpočet. **`fenix-ad-update`** nastaví stav, začátek a konec u libovolného typu reklamy včetně **bannerů** (DRAK u nich datum nemá) a umí víc reklam jedné sestavy najednou. Oba mají `--dry-run` s ověřením na straně API. DRAKové `campaign-create` a `campaign-update` dostaly `--start-date` a `--end-date`. Výpisy `fenix-campaigns` a `fenix-ads` nově ukazují data a frekvenční strop.
 - **1.11.0**: nová skupina příkazů **`fenix-*`** nad API Fénix 1.30.0: výpis kampaní, sestav, inzerátů a hlavně **vylučujících slov na úrovni kampaně** (`fenix-negatives`), která DRAK přečíst neumí. K tomu zakládání kampaní, sestav a ETA inzerátů s **`--dry-run`** (API jen ověří, nic nezaloží) a přidání/smazání vylučujících slov. Nová kampaň se zakládá **pozastavená**. Engine Fénixu nově čeká přesně tak dlouho, jak API řekne v hlavičce `Retry-After`. **Čtecí příkazy `fenix-*` a `--dry-run` u kampaně jsou ověřené na živém účtu, ostré zápisy zatím jen proti specifikaci** (podrobně níže). Volitelně jde tokeny držet ve správci hesel místo v `.env` (skript `run-op.sh` pro 1Password); přihlášení tokenem v `.env` se nemění.
 - **1.10.1**: oprava jednotek u `nakupy-campaigns`. Denní rozpočet se tiskl 100× vyšší (250 Kč jako 25 000 Kč) a modifikátory nabídek obráceně. `maxCpcMultiplier` navzdory jménu není násobič se základnou 100 %, ale znaménkové procento se stejnou konvencí jako DRAK (`0` = beze změny, `-100` = vypnuto). Specifikace Fénixu tvrdí u obou polí něco jiného než živý účet; díky za ověření patří opět uživateli ArkAngelMichael.
 - **1.10.0**: nová skupina příkazů **Nákupy / feed (API Fénix)**: `feed-status`, `feed-diagnostics`, `nakupy-campaigns`, `nakupy-stats`, `shop-items`. U nákupních kampaní (Seznam Nákupy, dřív Zboží.cz) vidí DRAK jen agregát na kampani a sestavě. Feed, jednotlivé produkty ani rozpad výkonu podle umístění (Seznam × Zboží, typ aukce, zařízení) neukáže vůbec. To teď doplňuje API Fénix; potřebuje vlastní token v `.env`. **Za nápad i za první implementaci děkuji uživateli ArkAngelMichael.**
@@ -195,8 +196,8 @@ Souhrn celého účtu **jedním voláním**, místo řetězení `account` + `cam
 | Příkaz | Klíčové přepínače |
 |--------|-------------------|
 | `campaigns` | `--status active/suspend`, `--json` |
-| `campaign-create` | `--name`, `--day-budget` (CZK), `--type fulltext/context/product`, `--status active/suspend`, `--regions`, `--device-bids`, `--ad-selection`, `--json` |
-| `campaign-update` | `--campaign-id`, `--name`, `--day-budget`, `--status`, `--regions`, `--device-bids`, `--schedule-json`, `--ad-selection`, `--json` |
+| `campaign-create` | `--name`, `--day-budget` (CZK), `--type fulltext/context/product`, `--status active/suspend`, `--regions`, `--device-bids`, `--ad-selection`, `--start-date`, `--end-date` (`YYYY-MM-DD`), `--json` |
+| `campaign-update` | `--campaign-id`, `--name`, `--day-budget`, `--status`, `--regions`, `--device-bids`, `--schedule-json`, `--ad-selection`, `--start-date`, `--end-date` (`YYYY-MM-DD`, `none` datum smaže), `--json`. Frekvenční strop kampaně DRAK nemá, nastavuje ho `fenix-campaign-update` |
 | `campaign-remove` | `--campaign-id`, `--confirm`, `--json` |
 | `campaign-stats` | `--campaign-id`, `--date-from`, `--date-to`, `--granularity {total,daily,weekly,monthly,quarterly,yearly}`, `--json` |
 | `campaign-targeting` | `--campaign-id`, `--json`. Přehled geo / zařízení / rozvrhu |
@@ -446,11 +447,22 @@ Token potřebuje úroveň přístupu **`rw`** pro zápis (volí se při generov�
 | `fenix-ad-create` | `--campaign-id`, `--group-id`, `--headline1`, `--headline2`, `--headline3`, `--description1` (alias `--description`), `--description2`, `--final-url`, `--path1`, `--path2`, `--mobile-final-url`, `--tracking-template`, `--dry-run`, `--json`. Inzerát vzniká vždy aktivní, `status` API při zakládání odmítá |
 | `fenix-negative-add` | `--campaign-id`, `--group-id`, `--name`, `--match-type negative\|negativePhrase\|negativeExact`, `--dry-run`, `--json` |
 | `fenix-negative-remove` | `--campaign-id`, `--group-id`, `--name`, `--match-type` (povinný), `--confirm`, `--dry-run`, `--json` |
+| `fenix-campaign-update` | `--campaign-id`, `--type` (bez něj se dohledá), `--name`, `--status`, `--day-budget` (Kč), `--total-budget` (Kč, `none` = bez limitu), `--start-date`, `--end-date` (`YYYY-MM-DD`, `none` datum smaže), `--capping-max`, `--capping-period daily\|weekly\|monthly\|whole`, `--capping-min-delay`, `--capping-min-delay-period minute\|hour` (hodnota a období vždy spolu), `--no-capping`, `--excluded-urls URL …` (nahradí celý seznam), `--no-excluded-urls`, `--dry-run`, `--json` |
+| `fenix-ad-update` | `--campaign-id`, `--group-id`, `--ad-id ID …` (víc reklam jedné sestavy), `--type` (bez něj se dohledá), `--status`, `--start-date`, `--end-date` (`YYYY-MM-DD`, `none` smaže), `--name` (jen banner a branding), `--dry-run`, `--json`. Funguje pro všechny typy reklam včetně bannerů |
+
+Příklad: konec kampaně a strop 3 zobrazení denně, pak konec bannerů o týden dřív (nejdřív vždy `--dry-run`):
+
+```bash
+./run.sh fenix-campaign-update --campaign-id 123 --end-date 2026-11-10 --capping-max 3 --capping-period daily --dry-run
+./run.sh fenix-ad-update --campaign-id 123 --group-id 456 --ad-id 11 12 13 --end-date 2026-11-04 --dry-run
+```
+
+Datum se posílá bez času; API ho uloží jako půlnoc místního času (`2026-11-10T00:00:00+01:00`). Jestli kampaň ten den ještě běží, specifikace neříká, ověř to ve webovém Skliku.
 
 **Čtyři věci, které se liší od příkazů nad DRAKem:**
 
 - **Nová kampaň je pozastavená.** `fenix-campaign-create` posílá `status: suspend`, dokud nepřidáš `--status active`. Sestava se bez `--status` založí aktivní (výchozí hodnota API).
-- **`--dry-run` znamená dvě různé věci.** U `fenix-campaign-create`, `fenix-group-create` a `fenix-ad-create` je to skutečné ověření na straně API. U `fenix-negative-add` a `fenix-negative-remove` API žádný `dryRun` nemá, takže přepínač jen vypíše požadavek a **nic neodešle a nic neověří**.
+- **`--dry-run` znamená dvě různé věci.** U `fenix-campaign-create`, `fenix-group-create`, `fenix-ad-create`, `fenix-campaign-update` a `fenix-ad-update` je to skutečné ověření na straně API. U `fenix-negative-add` a `fenix-negative-remove` API žádný `dryRun` nemá, takže přepínač jen vypíše požadavek a **nic neodešle a nic neověří**.
 - **Vylučující slova nemají ID.** Mažou se textem a typem shody (`--name` + `--match-type`) a smazání je trvalé. Volná shoda se ve Fénixu jmenuje `negative`; DRAKové `negativeBroad` příkazy přijmou a převedou.
 - **`--json` vrací částky v haléřích.** Přepínače berou koruny a lidský výstup koruny ukazuje, ale `--json` je syrová odpověď API: `budget.dayBudget`, `exhaustedDayBudget`, `cpc` a `cpm` jsou v haléřích. Pozor na rozdíl proti `campaigns --json` a `groups --json`, které vrací koruny. Kredit ve `fenix-credit` je v korunách.
 

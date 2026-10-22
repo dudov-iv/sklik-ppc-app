@@ -68,6 +68,7 @@ from sklik.commands.fenix_sklik import (
     cmd_fenix_campaigns, cmd_fenix_groups, cmd_fenix_ads, cmd_fenix_negatives,
     cmd_fenix_campaign_create, cmd_fenix_group_create, cmd_fenix_ad_create,
     cmd_fenix_negative_add, cmd_fenix_negative_remove,
+    cmd_fenix_campaign_update, cmd_fenix_ad_update,
 )
 import sklik.fenix as fenix
 from sklik.reports import STAT_GRANULARITIES
@@ -146,6 +147,7 @@ _FENIX_COMMANDS = frozenset({
     "fenix-campaigns", "fenix-groups", "fenix-ads", "fenix-negatives",
     "fenix-campaign-create", "fenix-group-create", "fenix-ad-create",
     "fenix-negative-add", "fenix-negative-remove",
+    "fenix-campaign-update", "fenix-ad-update",
 })
 
 
@@ -258,6 +260,8 @@ def main() -> None:
                    help="Ad rotation: weighted=prefer higher CTR (default), "
                         "random=even split (clean creative A/B test), "
                         "cpa=prefer lower CPA, cos=prefer lower CTR")
+    p.add_argument("--start-date", help="Campaign start, YYYY-MM-DD")
+    p.add_argument("--end-date", help="Campaign end, YYYY-MM-DD")
     p.add_argument("--json", **json_kwargs)
 
     # --- campaign-update ---
@@ -277,6 +281,8 @@ def main() -> None:
                    help="Ad rotation: weighted=prefer higher CTR (default), "
                         "random=even split (clean creative A/B test), "
                         "cpa=prefer lower CPA, cos=prefer lower CTR")
+    p.add_argument("--start-date", help="Campaign start, YYYY-MM-DD; 'none' clears it")
+    p.add_argument("--end-date", help="Campaign end, YYYY-MM-DD; 'none' clears it")
     p.add_argument("--json", **json_kwargs)
 
     # --- campaign-targeting ---
@@ -1081,6 +1087,61 @@ def main() -> None:
     p.add_argument("--dry-run", **local_dry_run_kwargs)
     p.add_argument("--json", **json_kwargs)
 
+    update_dry_run_kwargs: dict = {
+        "dest": "dry_run", "action": "store_true",
+        "help": "Validate only (API dryRun=true): nothing is changed",
+    }
+    date_help = "YYYY-MM-DD; 'none' clears it"
+
+    p = subparsers.add_parser(
+        "fenix-campaign-update",
+        help="Update campaign: status, budgets, start/end date, frequency cap, "
+             "excluded URLs; --dry-run validates only (Fénix)")
+    p.add_argument("--campaign-id", type=int, required=True, help="Campaign ID")
+    p.add_argument("--type", choices=["fulltext", "context", "product", "simple", "smart",
+                                      "video", "zbozi", "social", "audio"],
+                   help="Campaign type (looked up when omitted; it cannot be changed)")
+    p.add_argument("--name", help="New name")
+    p.add_argument("--status", choices=["active", "suspend"], help="New status")
+    p.add_argument("--day-budget", type=float, help="Day budget in CZK")
+    p.add_argument("--total-budget", help="Total budget in CZK; 'none' removes the limit")
+    p.add_argument("--start-date", help=f"Campaign start, {date_help}")
+    p.add_argument("--end-date", help=f"Campaign end, {date_help}")
+    p.add_argument("--capping-max", type=int,
+                   help="Frequency cap: max impressions per user per --capping-period")
+    p.add_argument("--capping-period", choices=["daily", "weekly", "monthly", "whole"],
+                   help="Frequency cap period (whole = the campaign's whole run)")
+    p.add_argument("--capping-min-delay", type=int,
+                   help="Frequency cap: minimum delay between impressions")
+    p.add_argument("--capping-min-delay-period", choices=["minute", "hour"],
+                   help="Unit of --capping-min-delay")
+    p.add_argument("--no-capping", action="store_true",
+                   help="Remove the campaign-level frequency cap")
+    p.add_argument("--excluded-urls", nargs="+", metavar="URL",
+                   help="Websites to exclude (REPLACES the whole list)")
+    p.add_argument("--no-excluded-urls", action="store_true",
+                   help="Clear the excluded-websites list")
+    p.add_argument("--dry-run", **update_dry_run_kwargs)
+    p.add_argument("--json", **json_kwargs)
+
+    p = subparsers.add_parser(
+        "fenix-ad-update",
+        help="Update ads of one group, banners too: status, start/end date, "
+             "name; --dry-run validates only (Fénix)")
+    p.add_argument("--campaign-id", type=int, required=True, help="Campaign ID")
+    p.add_argument("--group-id", type=int, required=True, help="Group ID")
+    p.add_argument("--ad-id", type=int, nargs="+", required=True, metavar="ID",
+                   help="One or more ad IDs from that group")
+    p.add_argument("--type", choices=["eta", "smart", "banner", "combined", "branding",
+                                      "dynamic_banner"],
+                   help="Ad type of ALL listed ads (looked up when omitted)")
+    p.add_argument("--status", choices=["active", "suspend"], help="New status")
+    p.add_argument("--start-date", help=f"Ad start, {date_help}")
+    p.add_argument("--end-date", help=f"Ad end, {date_help}")
+    p.add_argument("--name", help="New name (banner and branding ads only)")
+    p.add_argument("--dry-run", **update_dry_run_kwargs)
+    p.add_argument("--json", **json_kwargs)
+
     parser.epilog = _build_epilog(subparsers)
     args = parser.parse_args()
     api.set_json_output(getattr(args, "json", False))
@@ -1199,6 +1260,8 @@ def main() -> None:
         "fenix-ad-create": cmd_fenix_ad_create,
         "fenix-negative-add": cmd_fenix_negative_add,
         "fenix-negative-remove": cmd_fenix_negative_remove,
+        "fenix-campaign-update": cmd_fenix_campaign_update,
+        "fenix-ad-update": cmd_fenix_ad_update,
     }
 
     commands[args.command](args)
